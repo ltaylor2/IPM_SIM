@@ -1,0 +1,21 @@
+Parameter -- Meaning
+
+param[t] -- parameter value calculated for year t
+m.param -- Bayesian estimated (within model) mean param value across years
+
+N.1 -- COUNT of first-time (i.e., SY) breeding birds in the total population
+N.a -- COUNT of returning breeders (i.e., ASY) in the total population
+N.imm -- COUNT of immigrants  (in this case, but not always, equal to our immigration param omega)
+Ntot -- COUNT of total population
+
+phi1 -- Juvenile survival rate, 0-1, or the rate at which a nestling year t returns after its first winter to breed in year t+1
+
+phia -- Adult survival rate, 0-1, or the rate at which a breeding adult in year t returns to breed in year t+1
+
+omega -- COUNT of immigrant birds in year t
+
+prod -- productivity, or the number of (in this case) juveniles produced per nest in year t
+
+
+lambda -- derived parameter, Ntot[t+1]/Ntot[t]
+immRate -- derived parameter, omega[t]/Ntot[t]
