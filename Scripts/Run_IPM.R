@@ -25,3 +25,7 @@ params <- c("phi1",
 ipm <- jags(data=jags.data, inits=jags.inits, parameters.to.save=params,
 			model.file="Scripts/ipm.SIM.bug",
 			n.chains=3, n.thin=20, n.iter=500000, n.burnin=250000, parallel=FALSE)
+
+out <- as.data.frame(ipm$summary)
+out <- bind_cols(as.data.frame(rownames(out)), out)
+colnames(out)[1] <- "param"
