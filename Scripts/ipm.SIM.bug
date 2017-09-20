@@ -1,0 +1,134 @@
+model {
+  # -------------------------------
+  # parameter priors
+  # -------------------------------
+  
+  n1 ~ dnorm(30, 0.01)T(0,)
+  N.1[1] <- round(n1)    
+  
+  na ~ dnorm(30, 0.01)T(0,)
+  N.sad[1] <- round(na)      
+  
+  ni ~ dnorm(30, 0.01)T(0,)
+  N.imm[1] <- round(ni)
+
+  for (t in 1:(nyears-1)) {
+    logit(phi1[t]) <- l.m.phi1 + epsilon.phi1[t]      # First year app. survival
+    logit(phia[t]) <- l.m.phia + epsilon.phia[t]      # Adult app. survival
+            
+    log(omega[t]) <- l.m.omega + epsilon.omega[t]     # Immigration count
+  }
+
+  for (t in 1:nyears) {
+  	log(prod[t]) <- l.m.prod + epsilon.prod[t]
+  }
+
+  # SD precision for temporal variability of demographic parameters
+  tau.phi1 ~ dgamma(0.001, 0.001)
+  tau.phia ~ dgamma(0.001, 0.001)
+
+  tau.omega ~ dgamma(0.001, 0.001)
+
+  tau.prod ~ dgamma(0.001, 0.001)
+
+  # mean demographic parameters
+  m.phi1 ~ dunif(0, 1)
+  m.phia ~ dunif(0, 1)
+
+  m.recap.1 ~ dunif(0, 1)
+  m.recap.a ~ dunif(0, 1)
+
+  m.omega ~ dunif(0, 100)
+  m.prod ~ dunif(0, 10)
+
+  # back transform means
+  l.m.phi1 <- log(m.phi1 / (1-m.phi1))
+  l.m.phia <- log(m.phia / (1-m.phia))
+
+  l.m.omega <- log(m.omega)
+  l.m.prod <- log(m.prod)
+
+  # error terms for variable demographic rates
+  for (t in 1:(nyears-1)) {
+  	epsilon.phi1[t] ~ dnorm(0, tau.phi1+0.0001)
+  	epsilon.phia[t] ~ dnorm(0, tau.phia+0.0001)
+
+  	epsilon.omega[t] ~ dnorm(0, tau.omega)
+
+  	epsilon.prod[t] ~ dnorm(0, tau.prod)
+  }
+
+  epsilon.prod[nyears] ~ dnorm(0, tau.prod)
+
+  # -------------------------------
+  # Derived parameters
+  # -------------------------------
+  for (t in 1:(nyears-1)) {
+    immRate[t] <- N.imm[t+1] / Ntot[t]
+
+    lambda[t] <- Ntot[t+1] / Ntot[t]
+    logla[t] <- log(lambda[t])        # log lambda for geometric mean
+  }
+
+  m.lambda <- exp(1/(nyears-1) * sum(logla[1:(nyears-1)]))
+
+  # -------------------------------
+  # Likelihood
+  # -------------------------------
+  
+  # The system process
+  for (t in 2:nyears) {
+  	# fledglings
+    meanFl[t-1] <- Ntot[t-1] * prod[t-1]
+    fl[t-1] ~ dpois(meanFl[t-1])
+        
+    N.1[t] ~ dbin(phi1[t-1], round(fl[t-1]))    	# local recruits
+
+    N.sad[t] ~ dbin(phia[t-1], round(Ntot[t-1])) 	# returning adults
+    
+    N.imm[t] ~ dpois(omega[t-1])     			# no. immigrants
+  }
+  
+  # Observation process
+  for (t in 1:nyears) {
+    Ntot[t] <- N.sad[t] + N.imm[t] + N.1[t]  # no. breeding females
+    Y[t] ~ dpois(Ntot[t])
+  }
+
+  # likelihood for CJS
+  for (t in 1:(nyears-1)){
+    marray[t,1:nyears] ~ dmulti(pr[t,]+0.0001, R[t])
+    marray[t+nyears-1,1:nyears] ~ dmulti(pr[t+nyears-1,], R[t+nyears-1])
+  }
+    
+  # m-array cell probabilities
+  for (t in 1:(nyears-1)){
+    q[t] <- 0               # recap is currently 1!
+
+    # main diagonal
+    pr[t,t] <- phi1[t]
+    pr[t+nyears-1,t] <- phia[t]
+
+    # above main diagonal
+    for (j in (t+1):(nyears-1)){
+      pr[t,j] <- phi1[t] * prod(phia[(t+1):j]) * prod(q[t:(j-1)])
+      pr[t+nyears-1,j] <- prod(phia[t:j]) * prod(q[t:(j-1)])
+    }
+    
+    # below main diagonal
+    for (j in 1:(t-1)){
+      pr[t,j] <- 0
+      pr[t+nyears-1,j] <- 0
+    }
+    
+    # last column
+    pr[t,nyears] <- 1 - sum(pr[t,1:(nyears-1)])
+    pr[t+nyears-1,nyears] <- 1 - sum(pr[t+nyears-1,1:(nyears-1)])
+  }
+  
+  # Poisson regressions for productivity data
+  for (t in 1:nyears) {
+    numChicks[t] ~ dpois(rho[t])
+    rho[t] <- prod[t] * Y[t]
+  }
+}
